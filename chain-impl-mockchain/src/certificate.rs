@@ -6,6 +6,8 @@ use chain_crypto::{Ed25519Extended, SecretKey, Verification};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
+use std::slice;
+
 #[derive(Debug, Clone)]
 pub struct SignatureRaw(Vec<u8>);
 
@@ -73,13 +75,13 @@ impl Certificate {
     }
 }
 
-/// Keep an information how to extract public keys from
-/// the certificate.
+/// Abstracts extracting public stake key identifiers
+/// from a certificate.
 trait HasStakeKeyIds {
-    fn public_keys<'a>(&'a self) -> Box<ExactSizeIterator<Item = &StakeKeyId> + 'a>;
+    fn public_keys(&self) -> &[StakeKeyId];
 }
 
-fn verify_certificate<C>(certificate: &C, raw_signatures: &[SignatureRaw]) -> Verification
+fn verify_certificate<'a, C>(certificate: &C, raw_signatures: &[SignatureRaw]) -> Verification
 where
     C: HasStakeKeyIds + property::Serialize,
 {
@@ -90,6 +92,7 @@ where
         return Verification::Failed;
     }
     owners
+        .iter()
         .zip(signatures)
         .fold(Verification::Success, |_, (owner, signature)| {
             let mut reader = ReadBuf::from(&signature.0);
@@ -203,8 +206,8 @@ impl StakeKeyRegistration {
 }
 
 impl HasStakeKeyIds for StakeKeyRegistration {
-    fn public_keys<'a>(&'a self) -> Box<ExactSizeIterator<Item = &StakeKeyId> + 'a> {
-        Box::new(std::iter::once(&self.stake_key_id))
+    fn public_keys(&self) -> &[StakeKeyId] {
+        slice::from_ref(&self.stake_key_id)
     }
 }
 
@@ -239,8 +242,8 @@ impl StakeKeyDeregistration {
 }
 
 impl HasStakeKeyIds for StakeKeyDeregistration {
-    fn public_keys<'a>(&'a self) -> Box<ExactSizeIterator<Item = &StakeKeyId> + 'a> {
-        Box::new(std::iter::once(&self.stake_key_id))
+    fn public_keys(&self) -> &[StakeKeyId] {
+        slice::from_ref(&self.stake_key_id)
     }
 }
 
@@ -278,8 +281,8 @@ impl StakeDelegation {
 }
 
 impl HasStakeKeyIds for StakeDelegation {
-    fn public_keys<'a>(&'a self) -> Box<ExactSizeIterator<Item = &StakeKeyId> + 'a> {
-        Box::new(std::iter::once(&self.stake_key_id))
+    fn public_keys(&self) -> &[StakeKeyId] {
+        slice::from_ref(&self.stake_key_id)
     }
 }
 
@@ -313,8 +316,8 @@ impl StakePoolInfo {
 }
 
 impl HasStakeKeyIds for StakePoolInfo {
-    fn public_keys<'a>(&'a self) -> Box<ExactSizeIterator<Item = &StakeKeyId> + 'a> {
-        Box::new(self.owners.iter())
+    fn public_keys(&self) -> &[StakeKeyId] {
+        &self.owners
     }
 }
 
@@ -335,8 +338,8 @@ impl StakePoolRetirement {
 }
 
 impl HasStakeKeyIds for StakePoolRetirement {
-    fn public_keys<'a>(&'a self) -> Box<ExactSizeIterator<Item = &StakeKeyId> + 'a> {
-        Box::new(self.pool_info.owners.iter())
+    fn public_keys(&self) -> &[StakeKeyId] {
+        &self.pool_info.owners
     }
 }
 
